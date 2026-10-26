@@ -1,0 +1,41 @@
+# .NET: salida de compilación
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Resultados de tests y cobertura
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
+
+# Secretos y configuración local
+appsettings.*.local.json
+*.env.local
+.env.*.local
+
+# Node (el frontend tiene su propio .gitignore; esto cubre instalaciones accidentales en la raíz)
+node_modules/
+
+# SO
+.DS_Store
+Thumbs.db
+
+
+.env
+*/.env
