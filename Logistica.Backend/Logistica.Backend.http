@@ -1,0 +1,110 @@
+@Logistica.Backend_HostAddress = http://localhost:5280
+
+# Usuarios de prueba (data.sql): gerente, recepcion, despacho, chofer1, chofer2, chofer3 - password: Dev123!
+# Copiar el "token" de cada login en la variable correspondiente
+@tokenRecepcion = pegar-token
+@tokenDespacho = pegar-token
+@tokenChofer = pegar-token
+
+### Login
+POST {{Logistica.Backend_HostAddress}}/Auth/Login
+Content-Type: application/json
+
+{
+  "nombreUsuario": "recepcion",
+  "password": "Dev123!"
+}
+
+### ---------- Fase 1: Ingreso y recepción (Recepcionista) ----------
+
+### Consultar cliente por documento
+GET {{Logistica.Backend_HostAddress}}/Cliente/Documento/DNI/33444555
+Authorization: Bearer {{tokenRecepcion}}
+
+### Registrar paquete (devuelve el CodigoSeguimiento)
+POST {{Logistica.Backend_HostAddress}}/Paquete
+Authorization: Bearer {{tokenRecepcion}}
+Content-Type: application/json
+
+{
+  "idClienteRem": 1,
+  "idClienteDest": 5,
+  "descripcion": "Repuestos",
+  "pesoKg": 25.5,
+  "altoCm": 30,
+  "anchoCm": 40,
+  "largoCm": 50
+}
+
+### ---------- Fase 2: Armado del viaje (Despachante) ----------
+
+### Paquetes en depósito, vehículos disponibles y choferes habilitados
+GET {{Logistica.Backend_HostAddress}}/Viaje/Disponibles
+Authorization: Bearer {{tokenDespacho}}
+
+### Crear viaje que supera la capacidad (Kangoo 650 kg) -> 400 Bad Request
+POST {{Logistica.Backend_HostAddress}}/Viaje
+Authorization: Bearer {{tokenDespacho}}
+Content-Type: application/json
+
+{
+  "idVehiculo": 1,
+  "idChofer": 1,
+  "paquetes": [
+    { "idPaquete": 1, "ordenEntrega": 1 },
+    { "idPaquete": 2, "ordenEntrega": 2 },
+    { "idPaquete": 4, "ordenEntrega": 3 }
+  ]
+}
+
+### Crear viaje válido (Sprinter 1500 kg)
+POST {{Logistica.Backend_HostAddress}}/Viaje
+Authorization: Bearer {{tokenDespacho}}
+Content-Type: application/json
+
+{
+  "idVehiculo": 2,
+  "idChofer": 1,
+  "paquetes": [
+    { "idPaquete": 1, "ordenEntrega": 1 },
+    { "idPaquete": 2, "ordenEntrega": 2 },
+    { "idPaquete": 3, "ordenEntrega": 3 }
+  ]
+}
+
+### ---------- Fase 3: Distribución y entrega (Chofer: chofer1) ----------
+
+### Mis hojas de ruta en curso
+GET {{Logistica.Backend_HostAddress}}/Viaje/MisViajes
+Authorization: Bearer {{tokenChofer}}
+
+### Entregado
+PUT {{Logistica.Backend_HostAddress}}/Viaje/1/Paquete/1/Estado
+Authorization: Bearer {{tokenChofer}}
+Content-Type: application/json
+
+{
+  "idEstadoPaquete": 3,
+  "observacion": "Recibió el titular"
+}
+
+### Cancelado (observación obligatoria)
+PUT {{Logistica.Backend_HostAddress}}/Viaje/1/Paquete/2/Estado
+Authorization: Bearer {{tokenChofer}}
+Content-Type: application/json
+
+{
+  "idEstadoPaquete": 4,
+  "observacion": "Domicilio cerrado, sin respuesta"
+}
+
+### Finalizar viaje
+PUT {{Logistica.Backend_HostAddress}}/Viaje/1/Finalizar
+Authorization: Bearer {{tokenChofer}}
+
+### ---------- Trazabilidad (cualquier rol) ----------
+
+GET {{Logistica.Backend_HostAddress}}/Paquete/Seguimiento/TLS-261020-K7M2QA
+Authorization: Bearer {{tokenChofer}}
+
+###

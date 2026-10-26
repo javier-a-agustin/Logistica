@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Logistica.Abstracciones/Logistica.Abstracciones.csproj" />
+  <Project Path="Logistica.Backend/Logistica.Backend.csproj" />
+  <Project Path="Logistica.Core/Logistica.Core.csproj" />
+  <Project Path="Logistica.Data/Logistica.Data.csproj" />
+  <Project Path="xxLogistica.Tests/xxLogistica.Tests.csproj" />
+</Solution>
