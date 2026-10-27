@@ -20,7 +20,10 @@ builder.Services.AddDbContext<LogisticaDBContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("MYSQL_CONNECTION_STRING"),
         new MySqlServerVersion(new Version(8, 0, 32)),
-        mySqlOptions => mySqlOptions.EnableRetryOnFailure(3) // 3 intentos
+        mySqlOptions => mySqlOptions
+            .EnableRetryOnFailure(3) // 3 intentos
+            // Traduce ids.Contains(x) a un IN (...) en lugar de usar colecciones primitivas (JSON_TABLE)
+            .TranslateParameterizedCollectionsToConstants()
     )
 );
 
