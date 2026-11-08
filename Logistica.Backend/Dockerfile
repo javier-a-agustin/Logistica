@@ -1,30 +1,38 @@
-# Consulte https://aka.ms/customizecontainer para aprender a personalizar su contenedor de depuración y cómo Visual Studio usa este Dockerfile para compilar sus imágenes para una depuración más rápida.
+# =====================================================================
+# Dockerfile del BACKEND (.NET 8)
+# Usa "multi-stage build": una etapa para COMPILAR (imagen pesada con el SDK)
+# y otra para EJECUTAR (imagen liviana solo con el runtime).
+# Se construye desde la raíz del repo (ver docker-compose.yml: context: .)
+# =====================================================================
 
-# Esta fase se usa cuando se ejecuta desde VS en modo rápido (valor predeterminado para la configuración de depuración)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
-
-# Esta fase se usa para compilar el proyecto de servicio
+# ---------- Etapa 1: compilar ----------
+# Imagen oficial de Microsoft con el SDK de .NET 8 (trae "dotnet build/publish")
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Logistica.Backend/Logistica.Backend.csproj", "Logistica.Backend/"]
-RUN dotnet restore "./Logistica.Backend/Logistica.Backend.csproj"
+
+# Copiamos primero SOLO los .csproj y restauramos los paquetes NuGet.
+# Truco de caché: si no cambiaste dependencias, Docker reutiliza esta capa
+# y no vuelve a descargar todo en cada build.
+COPY Logistica.Abstracciones/Logistica.Abstracciones.csproj Logistica.Abstracciones/
+COPY Logistica.Core/Logistica.Core.csproj                   Logistica.Core/
+COPY Logistica.Data/Logistica.Data.csproj                   Logistica.Data/
+COPY Logistica.Backend/Logistica.Backend.csproj             Logistica.Backend/
+RUN dotnet restore Logistica.Backend/Logistica.Backend.csproj
+
+# Ahora sí copiamos todo el código y publicamos la app compilada en /app/publish
 COPY . .
-WORKDIR "/src/Logistica.Backend"
-RUN dotnet build "./Logistica.Backend.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet publish Logistica.Backend/Logistica.Backend.csproj \
+    -c Release -o /app/publish --no-restore /p:UseAppHost=false
 
-# Esta fase se usa para publicar el proyecto de servicio que se copiará en la fase final.
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Logistica.Backend.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
-
-# Esta fase se usa en producción o cuando se ejecuta desde VS en modo normal (valor predeterminado cuando no se usa la configuración de depuración)
-FROM base AS final
+# ---------- Etapa 2: ejecutar ----------
+# Imagen liviana: solo el runtime de ASP.NET (sin compilador)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+# Traemos únicamente el resultado compilado de la etapa anterior
+COPY --from=build /app/publish .
+# Corre con un usuario sin privilegios (buena práctica de seguridad)
+USER $APP_UID
+# La API escucha en el puerto 8080 DENTRO del contenedor
+EXPOSE 8080
+# Comando que se ejecuta al iniciar el contenedor
 ENTRYPOINT ["dotnet", "Logistica.Backend.dll"]

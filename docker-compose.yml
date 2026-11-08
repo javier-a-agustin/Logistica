@@ -1,0 +1,60 @@
+# =====================================================================
+# docker-compose.yml - Levanta TODA la aplicación con un solo comando:
+#     docker compose up --build
+#
+# Servicios (cada uno es un contenedor):
+#   db       -> MySQL 8 con la base "logistica" (se crea sola con data.sql)
+#   backend  -> API .NET            http://localhost:5280/swagger
+#   frontend -> React servido por Nginx   http://localhost:3000
+#
+# Dentro de la red de Docker los contenedores se llaman por su NOMBRE
+# de servicio (ej: el backend se conecta a la base con Server=db).
+# =====================================================================
+
+services:
+
+  db:
+    image: mysql:8.0
+    container_name: logistica-db
+    environment:
+      MYSQL_ROOT_PASSWORD: Dev123          # solo para desarrollo/entrega académica
+    ports:
+      - "3307:3306"                        # PC:3307 -> contenedor:3306 (para MySQL Workbench)
+    volumes:
+      # Todo .sql en esta carpeta se ejecuta la PRIMERA vez que se crea la base
+      - ./data.sql:/docker-entrypoint-initdb.d/01-data.sql:ro
+      # Volumen con nombre: los datos sobreviven aunque borres el contenedor
+      - db-data:/var/lib/mysql
+    healthcheck:
+      # La base está "sana" cuando ya acepta conexiones y la tabla Usuario existe
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -uroot -pDev123 -e 'SELECT 1 FROM logistica.Usuario LIMIT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  backend:
+    build:
+      context: .                           # raíz del repo (necesita los 4 proyectos .NET)
+      dockerfile: Logistica.Backend/Dockerfile
+    container_name: logistica-backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development  # habilita Swagger
+      # Pisa el connection string de appsettings.json (los "__" equivalen a ":")
+      ConnectionStrings__MYSQL_CONNECTION_STRING: "Server=db;Port=3306;Database=logistica;User=root;Password=Dev123;"
+    ports:
+      - "5280:8080"                        # PC:5280 -> contenedor:8080
+    depends_on:
+      db:
+        condition: service_healthy         # espera a que la base esté lista
+
+  frontend:
+    build: ./Logistica.Frontend
+    container_name: logistica-frontend
+    ports:
+      - "3000:80"                          # PC:3000 -> Nginx:80
+    depends_on:
+      - backend
+
+volumes:
+  db-data:

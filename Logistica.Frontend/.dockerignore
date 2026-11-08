@@ -1,0 +1,8 @@
+# Archivos que NO se copian a la imagen (pesan o se regeneran adentro)
+node_modules
+dist
+.env
+.env.*
+!.env.example
+Dockerfile
+.dockerignore
